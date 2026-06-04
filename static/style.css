@@ -72,7 +72,9 @@ a:hover { text-decoration: underline; }
 .btn-link:hover { color: var(--accent-dark); text-decoration: none; }
 .section-title { font-size: 1rem; font-weight: 700; margin-bottom: .75rem; margin-top: .25rem; }
 .two-col-grid { display: grid; grid-template-columns: 1fr 1fr; gap: 1.5rem; align-items: start; }
-@media (max-width: 768px) { .two-col-grid { grid-template-columns: 1fr; } }
+.three-col-grid { display: grid; grid-template-columns: 1fr 1fr 1fr; gap: 1.5rem; align-items: start; }
+@media (max-width: 960px) { .three-col-grid { grid-template-columns: 1fr 1fr; } }
+@media (max-width: 768px) { .two-col-grid, .three-col-grid { grid-template-columns: 1fr; } }
 .form-card { padding: 1.25rem; }
 .form-hint { font-size: .8rem; color: var(--text-muted); margin-bottom: 1rem; line-height: 1.6; }
 .adjust-form { display: flex; flex-direction: column; gap: .875rem; }

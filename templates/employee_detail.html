@@ -32,7 +32,22 @@
     {% endfor %}
   </tbody>
 </table></div></div>
-<div class="two-col-grid">
+<div class="three-col-grid">
+  <div>
+    <h2 class="section-title">Annual Leave Entitlement</h2>
+    <div class="card form-card">
+      <p class="form-hint">Set the number of days this employee receives per year from their contract. Leave blank to use the value from QuickBooks.</p>
+      <form method="POST" action="{{ url_for('set_entitlement', emp_id=employee.id) }}" class="adjust-form">
+        <div class="form-group">
+          <label for="entitlement_days">Days per year</label>
+          <input type="number" name="entitlement_days" id="entitlement_days"
+                 step="0.5" min="0" placeholder="e.g. 25"
+                 value="{{ employee.entitlement_days | int if employee.entitlement_days is not none else '' }}" />
+        </div>
+        <button type="submit" class="btn-primary">Save</button>
+      </form>
+    </div>
+  </div>
   <div>
     <h2 class="section-title">Add Manual Adjustment</h2>
     <div class="card form-card">

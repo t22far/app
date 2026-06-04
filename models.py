@@ -22,6 +22,7 @@ class EmployeeCache(db.Model):
     status = db.Column(db.String(32), nullable=False, default="ACTIVE")
     job_title = db.Column(db.String(128))
     department = db.Column(db.String(128))
+    entitlement_days = db.Column(db.Float, nullable=True)  # annual leave days from contract
     last_synced = db.Column(db.DateTime, nullable=False, default=datetime.datetime.utcnow)
 
     def full_name(self) -> str:

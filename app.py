@@ -65,9 +65,22 @@ def _balance_colour(available: float) -> str:
     return "balance-red"
 
 
+_HOURS_PER_DAY = 8.0
+
+
+def _entitlement_hours(employee: EmployeeCache) -> float | None:
+    if employee.entitlement_days is not None:
+        return employee.entitlement_days * _HOURS_PER_DAY
+    return None
+
+
 def _build_employee_summary(employee: EmployeeCache) -> dict:
     timeoff_rows = TimeoffCache.query.filter_by(employee_id=employee.id).all()
-    total_allocated = sum(r.accrued_hours for r in timeoff_rows)
+    ent_hours = _entitlement_hours(employee)
+    total_allocated = sum(
+        ent_hours if (ent_hours is not None and r.category == "VACATION") else r.accrued_hours
+        for r in timeoff_rows
+    ) if timeoff_rows else (ent_hours or 0.0)
     total_taken = sum(r.used_hours for r in timeoff_rows)
     total_future = sum(r.scheduled_hours for r in timeoff_rows)
     manual_adj = (
@@ -89,6 +102,16 @@ def _build_employee_summary(employee: EmployeeCache) -> dict:
 
 def create_tables_and_seed() -> None:
     db.create_all()
+    # Add entitlement_days column if upgrading from an older schema
+    with db.engine.connect() as conn:
+        cols = [row[1] for row in conn.execute(
+            db.text("PRAGMA table_info(employee_cache)")
+        )]
+        if "entitlement_days" not in cols:
+            conn.execute(db.text(
+                "ALTER TABLE employee_cache ADD COLUMN entitlement_days REAL"
+            ))
+            conn.commit()
     if EmployeeCache.query.count() == 0:
         _sync_from_qbo()
 
@@ -114,6 +137,7 @@ def employee_detail(emp_id: str) -> str:
         flash("Employee not found.", "error")
         return redirect(url_for("dashboard"))
     timeoff_rows = TimeoffCache.query.filter_by(employee_id=emp_id).all()
+    ent_hours = _entitlement_hours(employee)
     policy_rows = []
     for row in timeoff_rows:
         manual_adj = (
@@ -124,11 +148,13 @@ def employee_detail(emp_id: str) -> str:
             )
             .scalar()
         )
-        avail = row.accrued_hours - row.used_hours - row.scheduled_hours + manual_adj
+        allocated = (ent_hours if ent_hours is not None and row.category == "VACATION"
+                     else row.accrued_hours)
+        avail = allocated - row.used_hours - row.scheduled_hours + manual_adj
         policy_rows.append({
             "policy_name": row.policy_name,
             "category": row.category,
-            "allocated": row.accrued_hours,
+            "allocated": allocated,
             "taken": row.used_hours,
             "future": row.scheduled_hours,
             "manual_adj": manual_adj,
@@ -150,6 +176,31 @@ def employee_detail(emp_id: str) -> str:
         payslips=payslips,
         policies=policies_for_form,
     )
+
+
+@app.route("/employee/<emp_id>/entitlement", methods=["POST"])
+def set_entitlement(emp_id: str) -> str:
+    employee = db.session.get(EmployeeCache, emp_id)
+    if employee is None:
+        flash("Employee not found.", "error")
+        return redirect(url_for("dashboard"))
+    days_str = request.form.get("entitlement_days", "").strip()
+    if days_str == "":
+        employee.entitlement_days = None
+        db.session.commit()
+        flash(f"Entitlement cleared for {employee.full_name()}.", "success")
+    else:
+        try:
+            days = float(days_str)
+            if days < 0:
+                raise ValueError
+        except ValueError:
+            flash("Entitlement must be a positive number of days.", "error")
+            return redirect(url_for("employee_detail", emp_id=emp_id))
+        employee.entitlement_days = days
+        db.session.commit()
+        flash(f"Entitlement set to {days:g} days for {employee.full_name()}.", "success")
+    return redirect(url_for("employee_detail", emp_id=emp_id))
 
 
 @app.route("/employee/<emp_id>/adjust", methods=["POST"])
