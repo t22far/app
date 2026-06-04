@@ -65,12 +65,9 @@ def _balance_colour(available: float) -> str:
     return "balance-red"
 
 
-_HOURS_PER_DAY = 8.0
-
-
 def _entitlement_hours(employee: EmployeeCache) -> float | None:
-    if employee.entitlement_days is not None:
-        return employee.entitlement_days * _HOURS_PER_DAY
+    if employee.entitlement_hours is not None:
+        return employee.entitlement_hours
     return None
 
 
@@ -102,16 +99,20 @@ def _build_employee_summary(employee: EmployeeCache) -> dict:
 
 def create_tables_and_seed() -> None:
     db.create_all()
-    # Add entitlement_days column if upgrading from an older schema
+    # Add new columns if upgrading from an older schema
     with db.engine.connect() as conn:
         cols = [row[1] for row in conn.execute(
             db.text("PRAGMA table_info(employee_cache)")
         )]
-        if "entitlement_days" not in cols:
-            conn.execute(db.text(
-                "ALTER TABLE employee_cache ADD COLUMN entitlement_days REAL"
-            ))
-            conn.commit()
+        for col_def in [
+            ("entitlement_hours", "REAL"),
+            ("is_director", "INTEGER NOT NULL DEFAULT 0"),
+        ]:
+            if col_def[0] not in cols:
+                conn.execute(db.text(
+                    f"ALTER TABLE employee_cache ADD COLUMN {col_def[0]} {col_def[1]}"
+                ))
+        conn.commit()
     if EmployeeCache.query.count() == 0:
         _sync_from_qbo()
 
@@ -122,7 +123,7 @@ with app.app_context():
 
 @app.route("/")
 def dashboard() -> str:
-    employees = EmployeeCache.query.order_by(
+    employees = EmployeeCache.query.filter_by(is_director=False).order_by(
         EmployeeCache.status.desc(), EmployeeCache.last_name
     ).all()
     summaries = [_build_employee_summary(emp) for emp in employees]
@@ -184,22 +185,22 @@ def set_entitlement(emp_id: str) -> str:
     if employee is None:
         flash("Employee not found.", "error")
         return redirect(url_for("dashboard"))
-    days_str = request.form.get("entitlement_days", "").strip()
-    if days_str == "":
-        employee.entitlement_days = None
+    hours_str = request.form.get("entitlement_hours", "").strip()
+    if hours_str == "":
+        employee.entitlement_hours = None
         db.session.commit()
         flash(f"Entitlement cleared for {employee.full_name()}.", "success")
     else:
         try:
-            days = float(days_str)
-            if days < 0:
+            hours = float(hours_str)
+            if hours < 0:
                 raise ValueError
         except ValueError:
-            flash("Entitlement must be a positive number of days.", "error")
+            flash("Entitlement must be a positive number of hours.", "error")
             return redirect(url_for("employee_detail", emp_id=emp_id))
-        employee.entitlement_days = days
+        employee.entitlement_hours = hours
         db.session.commit()
-        flash(f"Entitlement set to {days:g} days for {employee.full_name()}.", "success")
+        flash(f"Entitlement set to {hours:g} hrs for {employee.full_name()}.", "success")
     return redirect(url_for("employee_detail", emp_id=emp_id))
 
 
@@ -246,6 +247,7 @@ def import_csv() -> str:
     try:
         now = datetime.datetime.utcnow()
         employees: list[dict] = []
+        skipped_directors = 0
 
         if has_employees:
             emp_bytes = emp_file.read()
@@ -254,16 +256,30 @@ def import_csv() -> str:
                 flash("No employees found in the employees CSV — check the file format.", "error")
                 return render_template("import.html")
 
+            skipped_directors = 0
             for emp in employees:
+                first, last = emp.get("firstName", ""), emp.get("lastName", "")
+                if qb_client.is_director(first, last):
+                    skipped_directors += 1
+                    continue
                 row = db.session.get(EmployeeCache, emp["id"]) or EmployeeCache(id=emp["id"])
-                row.first_name  = emp.get("firstName", "")
-                row.last_name   = emp.get("lastName", "")
+                row.first_name  = first
+                row.last_name   = last
                 row.email       = emp.get("email", "")
                 row.status      = emp.get("status", "ACTIVE")
                 row.job_title   = emp.get("jobTitle", "")
                 row.department  = emp.get("department", "")
+                row.is_director = False
+                known_hrs = qb_client.lookup_entitlement(first, last)
+                if known_hrs is not None:
+                    row.entitlement_hours = known_hrs
                 row.last_synced = now
                 db.session.merge(row)
+            # Filter directors out of the employee list used for time-off matching
+            employees = [
+                e for e in employees
+                if not qb_client.is_director(e.get("firstName", ""), e.get("lastName", ""))
+            ]
 
         timeoff_count = 0
 
@@ -332,6 +348,8 @@ def import_csv() -> str:
             parts.append(f"{timeoff_count} time-off balance records")
         if requests_count:
             parts.append(f"{requests_count} leave request summaries")
+        if skipped_directors:
+            parts.append(f"{skipped_directors} director(s) skipped")
         flash("Imported " + ", ".join(parts) + ".", "success")
 
     except Exception as exc:

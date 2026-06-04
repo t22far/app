@@ -346,6 +346,66 @@ def parse_leave_requests_xlsx(
 
 
 # ---------------------------------------------------------------------------
+# Known entitlements and director flags (applied automatically on CSV import)
+# ---------------------------------------------------------------------------
+
+# Directors — tracked in QB for payroll but excluded from the leave tracker.
+# Matched by normalised full name; any subset match also works (e.g. "christopher richards").
+_DIRECTORS: set[str] = {
+    _norm("Christopher Paul Elliot Richards"),
+    _norm("Denise Avril Richards"),
+    _norm("Michael John Richards"),
+    # short-name aliases
+    _norm("Christopher Richards"),
+    _norm("Denise Richards"),
+    _norm("Michael Richards"),
+}
+
+# Annual leave entitlements in hours, keyed by normalised full name.
+_ENTITLEMENTS: dict[str, float] = {
+    _norm("Alfie Richards"):          42.0,
+    _norm("Caroline Rona Jempson"):   78.4,
+    _norm("Caroline Jempson"):        78.4,
+    _norm("Helen Powell"):            78.4,
+    _norm("Kady Louise Richards"):    78.4,
+    _norm("Kady Richards"):           78.4,
+    _norm("Karen Wadsworth"):        100.8,
+    _norm("Laynie Tunstall"):         36.4,
+    _norm("Linda Pascoe"):            81.2,
+    _norm("Tina Davidson"):          117.6,
+    _norm("Victoria Southern"):       89.6,
+}
+
+
+def _match_name(first: str, last: str) -> str:
+    """Return the normalised full name used for lookups."""
+    return _norm(f"{first} {last}".strip())
+
+
+def lookup_entitlement(first: str, last: str) -> float | None:
+    """Return the known entitlement hours for this employee, or None."""
+    key = _match_name(first, last)
+    if key in _ENTITLEMENTS:
+        return _ENTITLEMENTS[key]
+    # Partial match — useful when QB name has extra middle names
+    for k, v in _ENTITLEMENTS.items():
+        if k in key or key in k:
+            return v
+    return None
+
+
+def is_director(first: str, last: str) -> bool:
+    """Return True if this employee is a director and should be excluded."""
+    key = _match_name(first, last)
+    if key in _DIRECTORS:
+        return True
+    for d in _DIRECTORS:
+        if d in key or key in d:
+            return True
+    return False
+
+
+# ---------------------------------------------------------------------------
 # Legacy shim — keeps the mock data available for the initial DB seed so the
 # app works out-of-the-box before any CSV has been imported.
 # ---------------------------------------------------------------------------
