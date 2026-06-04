@@ -5,20 +5,25 @@
 <div class="import-page">
   <h1 class="page-title">Import from QuickBooks</h1>
   <p class="page-subtitle">
-    Export your data from QuickBooks Online UK, then upload the CSV files below.
-    Existing records are updated in place; adjustments are preserved.
+    Export your data from QuickBooks Online UK, then upload the files below.
+    Existing records are updated in place; manual adjustments are always preserved.
   </p>
 
   <div class="import-instructions card">
     <h2>How to export from QuickBooks UK</h2>
     <ol>
       <li>
-        <strong>Employees CSV</strong><br>
-        Go to <em>Payroll &rarr; Employees</em>, click the export icon (top-right), choose <em>Export to CSV</em>.
+        <strong>Employees CSV</strong> &mdash; first-time setup or when your team changes<br>
+        <em>Payroll &rarr; Employees</em> &rarr; export icon (top-right) &rarr; <em>Export to CSV</em>
       </li>
       <li>
-        <strong>Time Off CSV</strong><br>
-        Go to <em>Payroll &rarr; Reports &rarr; Time Off Summary</em>, set your date range, then click <em>Export</em>.
+        <strong>Leave Requests XLSX</strong> &mdash; upload this each time you want to sync leave<br>
+        <em>Payroll &rarr; Time Off &rarr; Leave Requests</em> &rarr; set date range to your leave year &rarr; <em>Export</em><br>
+        <span class="field-hint" style="display:inline">The app reads Approved (taken) and Pending/Scheduled (upcoming) rows automatically.</span>
+      </li>
+      <li>
+        <strong>Time Off Summary CSV</strong> &mdash; optional, imports accrued allowances<br>
+        <em>Payroll &rarr; Reports &rarr; Time Off Summary</em> &rarr; set date range &rarr; <em>Export</em>
       </li>
     </ol>
   </div>
@@ -26,25 +31,44 @@
   <form method="POST" enctype="multipart/form-data" class="import-form card">
     <div class="form-group">
       <label for="employees_csv" class="form-label">
-        Employees CSV <span class="required">*</span>
+        Employees CSV
+        <span class="optional">(first run or when headcount changes)</span>
       </label>
       <input
         type="file"
         id="employees_csv"
         name="employees_csv"
         accept=".csv,text/csv"
-        required
         class="file-input"
       />
       <p class="field-hint">
-        Expected columns: <code>First name</code>, <code>Surname</code>, <code>Email address</code>,
+        Columns: <code>First name</code>, <code>Surname</code>, <code>Email address</code>,
         <code>Employment status</code>, <code>Job title</code>, <code>Department</code>
       </p>
     </div>
 
     <div class="form-group">
+      <label for="leave_requests_xlsx" class="form-label">
+        Leave Requests XLSX <span class="badge badge-active" style="font-size:.65rem;vertical-align:middle">Recommended</span>
+      </label>
+      <input
+        type="file"
+        id="leave_requests_xlsx"
+        name="leave_requests_xlsx"
+        accept=".xlsx,application/vnd.openxmlformats-officedocument.spreadsheetml.sheet"
+        class="file-input"
+      />
+      <p class="field-hint">
+        Columns: <code>Employee Id</code>, <code>Employee First Name</code>, <code>Employee Surname</code>,
+        <code>Leave Category</code>, <code>Start Date</code>, <code>End Date</code>,
+        <code>Units</code>, <code>Unit Type</code>, <code>Status</code>
+      </p>
+    </div>
+
+    <div class="form-group">
       <label for="timeoff_csv" class="form-label">
-        Time Off Summary CSV <span class="optional">(optional)</span>
+        Time Off Summary CSV
+        <span class="optional">(optional — imports accrued allowances)</span>
       </label>
       <input
         type="file"
@@ -54,8 +78,8 @@
         class="file-input"
       />
       <p class="field-hint">
-        Expected columns: <code>Employee</code>, <code>Policy</code>, <code>Category</code>,
-        <code>Accrued (hours)</code>, <code>Used (hours)</code>, <code>Scheduled (hours)</code>
+        Columns: <code>Employee</code>, <code>Policy</code>, <code>Accrued (hours)</code>,
+        <code>Used (hours)</code>, <code>Scheduled (hours)</code>
       </p>
     </div>
 

@@ -1,21 +1,18 @@
-"""QuickBooks CSV import helpers.
+"""QuickBooks import helpers — CSV and XLSX.
 
-Parses CSV exports from QuickBooks Online UK and normalises them into the
-dicts that app.py / _sync_from_qbo() already expects.
+Parsers for QuickBooks Online UK payroll exports:
 
-Employee CSV  – export from: Payroll → Employees → (export icon)
-  Expected columns (QB UK): Employee, First name, Surname, Email address,
-                             Employment status, Job title, Department
-  A "Name" column (full name) is accepted as fallback when first/last are absent.
-
-Time Off CSV  – export from: Payroll → Reports → Time Off Summary
-  Expected columns (QB UK): Employee, Policy, Category, Accrued (hours),
-                             Used (hours), Scheduled (hours)
+  Employee CSV      Payroll → Employees → export icon → Export to CSV
+  Time Off CSV      Payroll → Reports → Time Off Summary → Export
+  Leave Requests    Payroll → Time Off → Leave Requests → export (XLSX)
+    Columns: Employee Id, Employee First Name, Employee Surname,
+             Leave Category, Start Date, End Date, Units, Unit Type, Status
 """
 
 from __future__ import annotations
 
 import csv
+import datetime
 import io
 import re
 import unicodedata
@@ -206,6 +203,146 @@ def parse_timeoff_csv(
         })
 
     return balances
+
+
+# ---------------------------------------------------------------------------
+# Leave Requests XLSX parser  (QB UK: Payroll → Time Off → Leave Requests)
+# ---------------------------------------------------------------------------
+
+# Statuses QB considers "already taken"
+_TAKEN_STATUSES = {"approved", "processed", "complete", "completed"}
+# Statuses QB considers "booked but future"
+_SCHEDULED_STATUSES = {"pending", "scheduled", "awaiting approval", "requested"}
+
+# Working hours per day assumed when Unit Type is "Days"
+_HOURS_PER_DAY = 8.0
+
+
+def parse_leave_requests_xlsx(
+    file_bytes: bytes,
+) -> dict[str, dict[str, dict[str, float]]]:
+    """Parse a QB UK Leave Requests XLSX export.
+
+    Returns a nested dict:
+        { employee_id: { policy_id: { "used": float, "scheduled": float } } }
+
+    employee_id is built from QB's Employee Id column when present, otherwise
+    derived from first+surname the same way parse_employees_csv does.
+    """
+    import openpyxl  # lazy import — not needed for CSV-only flows
+
+    wb = openpyxl.load_workbook(io.BytesIO(file_bytes), data_only=True)
+
+    # Find the leave-requests sheet (first sheet whose name contains "leave" or is sheet 1)
+    ws = None
+    for name in wb.sheetnames:
+        if "leave" in name.lower() or "request" in name.lower():
+            ws = wb[name]
+            break
+    if ws is None:
+        ws = wb.active
+
+    rows = list(ws.iter_rows(values_only=True))
+    if not rows:
+        return {}
+
+    # Header row
+    raw_headers = [str(c).strip() if c is not None else "" for c in rows[0]]
+    norm_headers = {_norm(h): i for i, h in enumerate(raw_headers)}
+
+    def col(name: str, *aliases: str) -> int | None:
+        for candidate in (name, *aliases):
+            idx = norm_headers.get(_norm(candidate))
+            if idx is not None:
+                return idx
+        return None
+
+    i_emp_id   = col("Employee Id", "Employee ID", "EmployeeId")
+    i_first    = col("Employee First Name", "First Name", "First name")
+    i_surname  = col("Employee Surname", "Surname", "Last Name", "Last name")
+    i_category = col("Leave Category", "Category", "Leave Type", "Policy")
+    i_start    = col("Start Date", "Start")
+    i_end      = col("End Date", "End")
+    i_units    = col("Units")
+    i_unit_type = col("Unit Type", "Unit")
+    i_status   = col("Status")
+
+    totals: dict[str, dict[str, dict[str, float]]] = {}
+
+    for row in rows[1:]:
+        def cell(i: int | None) -> str:
+            if i is None or i >= len(row):
+                return ""
+            v = row[i]
+            return str(v).strip() if v is not None else ""
+
+        # Derive employee id
+        emp_id = cell(i_emp_id)
+        if not emp_id:
+            first   = cell(i_first)
+            surname = cell(i_surname)
+            if not first and not surname:
+                continue
+            emp_id = f"qb-{_norm(first)}-{_norm(surname)}"
+
+        # Leave category → policy id + name
+        category_raw = cell(i_category) or "Annual Leave"
+        policy_id    = f"pol-{_norm(category_raw)}"
+        category     = _map_category(category_raw)
+
+        # Hours: prefer Units column, fall back to date range
+        units_str  = cell(i_units)
+        unit_type  = cell(i_unit_type).lower()
+        hours = 0.0
+        if units_str:
+            try:
+                raw_units = float(units_str)
+                hours = raw_units * _HOURS_PER_DAY if "day" in unit_type else raw_units
+            except ValueError:
+                pass
+
+        if hours == 0.0:
+            # Calculate from date range
+            start_val = row[i_start] if i_start is not None else None
+            end_val   = row[i_end]   if i_end   is not None else None
+            if isinstance(start_val, datetime.datetime):
+                start_val = start_val.date()
+            elif isinstance(start_val, str):
+                for fmt in ("%d/%m/%Y", "%Y-%m-%d", "%m/%d/%Y"):
+                    try:
+                        start_val = datetime.datetime.strptime(start_val, fmt).date()
+                        break
+                    except ValueError:
+                        pass
+            if isinstance(end_val, datetime.datetime):
+                end_val = end_val.date()
+            elif isinstance(end_val, str):
+                for fmt in ("%d/%m/%Y", "%Y-%m-%d", "%m/%d/%Y"):
+                    try:
+                        end_val = datetime.datetime.strptime(end_val, fmt).date()
+                        break
+                    except ValueError:
+                        pass
+            if isinstance(start_val, datetime.date) and isinstance(end_val, datetime.date):
+                delta = (end_val - start_val).days + 1
+                hours = delta * _HOURS_PER_DAY
+
+        # Bucket into used vs scheduled by status
+        status_raw = cell(i_status).lower().strip()
+        bucket = (
+            "used" if status_raw in _TAKEN_STATUSES
+            else "scheduled" if status_raw in _SCHEDULED_STATUSES
+            else "used"  # default: treat unknown as approved/taken
+        )
+
+        emp_totals = totals.setdefault(emp_id, {})
+        policy_totals = emp_totals.setdefault(
+            policy_id,
+            {"policy_name": category_raw, "category": category, "used": 0.0, "scheduled": 0.0},
+        )
+        policy_totals[bucket] += hours
+
+    return totals
 
 
 # ---------------------------------------------------------------------------
