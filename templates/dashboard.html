@@ -1,0 +1,49 @@
+{% extends "base.html" %}
+{% block title %}Dashboard - Leave Tracker{% endblock %}
+{% block content %}
+<div class="page-header">
+  <div>
+    <h1 class="page-title">Holiday Leave Dashboard</h1>
+    <p class="page-subtitle">Overview of all staff leave balances &mdash; last synced {{ last_sync | fmt_datetime }}</p>
+  </div>
+  <div class="legend">
+    <span class="legend-dot balance-green-bg"></span><span>&gt; 40 hrs</span>
+    <span class="legend-dot balance-amber-bg"></span><span>10-40 hrs</span>
+    <span class="legend-dot balance-red-bg"></span><span>&lt; 10 hrs</span>
+  </div>
+</div>
+<div class="card">
+  <div class="table-wrapper">
+    <table class="data-table">
+      <thead>
+        <tr>
+          <th>Employee</th><th>Status</th>
+          <th class="num-col">Allocated</th><th class="num-col">Taken</th>
+          <th class="num-col">Future Approved</th><th class="num-col">Manual Adj.</th>
+          <th class="num-col">Available</th><th></th>
+        </tr>
+      </thead>
+      <tbody>
+        {% for s in summaries %}
+        <tr class="{% if s.employee.status == 'INACTIVE' %}row-inactive{% endif %}">
+          <td><div class="employee-name-cell">
+            <div class="avatar">{{ s.employee.first_name[0] }}{{ s.employee.last_name[0] }}</div>
+            <div><div class="name">{{ s.employee.full_name() }}</div><div class="sub">{{ s.employee.job_title or '-' }}</div></div>
+          </div></td>
+          <td><span class="badge badge-{{ s.employee.status | lower }}">{{ s.employee.status }}</span></td>
+          <td class="num-col">{{ s.allocated | fmt_hours }}</td>
+          <td class="num-col">{{ s.taken | fmt_hours }}</td>
+          <td class="num-col">{{ s.future | fmt_hours }}</td>
+          <td class="num-col">{% if s.manual_adj != 0 %}<span class="{% if s.manual_adj > 0 %}adj-positive{% else %}adj-negative{% endif %}">{{ s.manual_adj | fmt_hours if s.manual_adj < 0 else '+' ~ (s.manual_adj | fmt_hours) }}</span>{% else %}-{% endif %}</td>
+          <td class="num-col"><span class="balance-pill {{ s.colour }}">{{ s.available | fmt_hours }}</span></td>
+          <td class="action-col"><a href="{{ url_for('employee_detail', emp_id=s.employee.id) }}" class="btn-link">View &rsaquo;</a></td>
+        </tr>
+        {% else %}
+        <tr><td colspan="8" class="empty-state">No employees found. <a href="{{ url_for('api_refresh') }}">Refresh from QBO</a>.</td></tr>
+        {% endfor %}
+      </tbody>
+    </table>
+  </div>
+</div>
+<p class="help-text">Available = Allocated - Taken - Future Approved + Manual Adjustments</p>
+{% endblock %}

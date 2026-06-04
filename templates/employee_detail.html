@@ -1,0 +1,86 @@
+{% extends "base.html" %}
+{% block title %}{{ employee.full_name() }} - Leave Tracker{% endblock %}
+{% block content %}
+<div class="page-header">
+  <div>
+    <a href="{{ url_for('dashboard') }}" class="back-link">&larr; Back to Dashboard</a>
+    <h1 class="page-title">{{ employee.full_name() }}</h1>
+    <p class="page-subtitle">{{ employee.job_title or 'No title' }}{% if employee.department %} &mdash; {{ employee.department }}{% endif %} <span class="badge badge-{{ employee.status | lower }}">{{ employee.status }}</span></p>
+  </div>
+</div>
+<h2 class="section-title">Leave Balances by Policy</h2>
+<div class="card"><div class="table-wrapper"><table class="data-table">
+  <thead><tr>
+    <th>Policy</th><th>Category</th>
+    <th class="num-col">Allocated</th><th class="num-col">Taken</th>
+    <th class="num-col">Future Approved</th><th class="num-col">Manual Adj.</th>
+    <th class="num-col">Available</th>
+  </tr></thead>
+  <tbody>
+    {% for row in policy_rows %}
+    <tr>
+      <td class="policy-name">{{ row.policy_name }}</td>
+      <td><span class="category-badge category-{{ row.category | lower }}">{{ row.category }}</span></td>
+      <td class="num-col">{{ row.allocated | fmt_hours }}</td>
+      <td class="num-col">{{ row.taken | fmt_hours }}</td>
+      <td class="num-col">{{ row.future | fmt_hours }}</td>
+      <td class="num-col">{% if row.manual_adj != 0 %}<span class="{% if row.manual_adj > 0 %}adj-positive{% else %}adj-negative{% endif %}">{{ row.manual_adj | fmt_hours if row.manual_adj < 0 else '+' ~ (row.manual_adj | fmt_hours) }}</span>{% else %}-{% endif %}</td>
+      <td class="num-col"><span class="balance-pill {{ row.colour }}">{{ row.available | fmt_hours }}</span></td>
+    </tr>
+    {% else %}
+    <tr><td colspan="7" class="empty-state">No time-off policies found.</td></tr>
+    {% endfor %}
+  </tbody>
+</table></div></div>
+<div class="two-col-grid">
+  <div>
+    <h2 class="section-title">Add Manual Adjustment</h2>
+    <div class="card form-card">
+      <p class="form-hint">Positive values add hours; negative values deduct them (e.g. carry-overs, unauthorised absences).</p>
+      <form method="POST" action="{{ url_for('add_adjustment', emp_id=employee.id) }}" class="adjust-form">
+        <div class="form-group"><label for="policy_id">Policy</label>
+          <select name="policy_id" id="policy_id" required>{% for p in policies %}<option value="{{ p.id }}">{{ p.name }}</option>{% endfor %}</select>
+        </div>
+        <div class="form-group"><label for="hours">Hours (positive or negative)</label>
+          <input type="number" name="hours" id="hours" step="0.5" placeholder="e.g. 8 or -4" required />
+        </div>
+        <div class="form-group"><label for="reason">Reason</label>
+          <input type="text" name="reason" id="reason" maxlength="256" placeholder="Brief description" required />
+        </div>
+        <button type="submit" class="btn-primary">Save Adjustment</button>
+      </form>
+    </div>
+  </div>
+  <div>
+    <h2 class="section-title">Adjustment History</h2>
+    <div class="card">
+      {% if adjustments %}
+      <ul class="adjustment-list">{% for adj in adjustments %}
+        <li class="adjustment-item">
+          <div class="adj-header"><span class="adj-policy">{{ adj.policy_id }}</span><span class="adj-date">{{ adj.created_at.strftime('%d %b %Y') }}</span></div>
+          <div class="adj-body">
+            <span class="{% if adj.hours > 0 %}adj-positive{% else %}adj-negative{% endif %} adj-hours">{{ adj.hours | fmt_hours if adj.hours < 0 else '+' ~ (adj.hours | fmt_hours) }}</span>
+            <span class="adj-reason">{{ adj.reason }}</span>
+          </div>
+        </li>
+      {% endfor %}</ul>
+      {% else %}
+      <p class="empty-state">No manual adjustments recorded yet.</p>
+      {% endif %}
+    </div>
+  </div>
+</div>
+<h2 class="section-title">Recent Payslips</h2>
+<div class="card">
+  {% if payslips %}
+  <div class="table-wrapper"><table class="data-table">
+    <thead><tr><th>Pay Period Start</th><th>Pay Period End</th><th class="num-col">Gross Pay</th><th class="num-col">Net Pay</th></tr></thead>
+    <tbody>{% for ps in payslips %}
+      <tr><td>{{ ps.periodStart }}</td><td>{{ ps.periodEnd }}</td><td class="num-col">&pound;{{ "%.2f" | format(ps.grossPay) }}</td><td class="num-col">&pound;{{ "%.2f" | format(ps.netPay) }}</td></tr>
+    {% endfor %}</tbody>
+  </table></div>
+  {% else %}
+  <p class="empty-state">No payslip data available.</p>
+  {% endif %}
+</div>
+{% endblock %}
