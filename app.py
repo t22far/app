@@ -7,6 +7,7 @@ import os
 
 from dotenv import load_dotenv
 from flask import Flask, flash, redirect, render_template, request, url_for
+from werkzeug.utils import secure_filename
 from sqlalchemy import func
 
 import qb_client
@@ -173,6 +174,74 @@ def add_adjustment(emp_id: str) -> str:
     db.session.commit()
     flash(f"Adjustment of {hours:+.1f} hrs recorded for {employee.full_name()}.", "success")
     return redirect(url_for("employee_detail", emp_id=emp_id))
+
+
+@app.route("/import", methods=["GET", "POST"])
+def import_csv() -> str:
+    if request.method == "GET":
+        return render_template("import.html")
+
+    emp_file = request.files.get("employees_csv")
+    timeoff_file = request.files.get("timeoff_csv")
+
+    if not emp_file or emp_file.filename == "":
+        flash("Please upload the employees CSV.", "error")
+        return render_template("import.html")
+
+    try:
+        emp_bytes = emp_file.read()
+        employees = qb_client.parse_employees_csv(emp_bytes)
+        if not employees:
+            flash("No employees found in CSV — check the file format.", "error")
+            return render_template("import.html")
+
+        timeoff_records: list[dict] = []
+        if timeoff_file and timeoff_file.filename != "":
+            to_bytes = timeoff_file.read()
+            timeoff_records = qb_client.parse_timeoff_csv(to_bytes, employees)
+
+        now = datetime.datetime.utcnow()
+
+        for emp in employees:
+            row = db.session.get(EmployeeCache, emp["id"]) or EmployeeCache(id=emp["id"])
+            row.first_name  = emp.get("firstName", "")
+            row.last_name   = emp.get("lastName", "")
+            row.email       = emp.get("email", "")
+            row.status      = emp.get("status", "ACTIVE")
+            row.job_title   = emp.get("jobTitle", "")
+            row.department  = emp.get("department", "")
+            row.last_synced = now
+            db.session.merge(row)
+
+        for balance in timeoff_records:
+            existing = TimeoffCache.query.filter_by(
+                employee_id=balance["employeeId"],
+                policy_id=balance["policyId"],
+            ).first()
+            if existing is None:
+                existing = TimeoffCache(
+                    employee_id=balance["employeeId"],
+                    policy_id=balance["policyId"],
+                )
+            existing.policy_name    = balance.get("policyName", "")
+            existing.category       = balance.get("category", "OTHER")
+            existing.accrued_hours  = balance.get("accruedHours", 0.0)
+            existing.used_hours     = balance.get("usedHours", 0.0)
+            existing.scheduled_hours = balance.get("scheduledHours", 0.0)
+            existing.last_synced    = now
+            db.session.add(existing)
+
+        db.session.commit()
+
+        msg = f"Imported {len(employees)} employees"
+        if timeoff_records:
+            msg += f" and {len(timeoff_records)} time-off records"
+        flash(msg + ".", "success")
+    except Exception as exc:
+        db.session.rollback()
+        flash(f"Import failed: {exc}", "error")
+
+    return redirect(url_for("dashboard"))
 
 
 @app.route("/api/refresh")

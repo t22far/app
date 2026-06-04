@@ -1,0 +1,68 @@
+{% extends "base.html" %}
+{% block title %}Import from QuickBooks — Leave Tracker{% endblock %}
+
+{% block content %}
+<div class="import-page">
+  <h1 class="page-title">Import from QuickBooks</h1>
+  <p class="page-subtitle">
+    Export your data from QuickBooks Online UK, then upload the CSV files below.
+    Existing records are updated in place; adjustments are preserved.
+  </p>
+
+  <div class="import-instructions card">
+    <h2>How to export from QuickBooks UK</h2>
+    <ol>
+      <li>
+        <strong>Employees CSV</strong><br>
+        Go to <em>Payroll &rarr; Employees</em>, click the export icon (top-right), choose <em>Export to CSV</em>.
+      </li>
+      <li>
+        <strong>Time Off CSV</strong><br>
+        Go to <em>Payroll &rarr; Reports &rarr; Time Off Summary</em>, set your date range, then click <em>Export</em>.
+      </li>
+    </ol>
+  </div>
+
+  <form method="POST" enctype="multipart/form-data" class="import-form card">
+    <div class="form-group">
+      <label for="employees_csv" class="form-label">
+        Employees CSV <span class="required">*</span>
+      </label>
+      <input
+        type="file"
+        id="employees_csv"
+        name="employees_csv"
+        accept=".csv,text/csv"
+        required
+        class="file-input"
+      />
+      <p class="field-hint">
+        Expected columns: <code>First name</code>, <code>Surname</code>, <code>Email address</code>,
+        <code>Employment status</code>, <code>Job title</code>, <code>Department</code>
+      </p>
+    </div>
+
+    <div class="form-group">
+      <label for="timeoff_csv" class="form-label">
+        Time Off Summary CSV <span class="optional">(optional)</span>
+      </label>
+      <input
+        type="file"
+        id="timeoff_csv"
+        name="timeoff_csv"
+        accept=".csv,text/csv"
+        class="file-input"
+      />
+      <p class="field-hint">
+        Expected columns: <code>Employee</code>, <code>Policy</code>, <code>Category</code>,
+        <code>Accrued (hours)</code>, <code>Used (hours)</code>, <code>Scheduled (hours)</code>
+      </p>
+    </div>
+
+    <div class="form-actions">
+      <button type="submit" class="btn-primary">Upload &amp; Import</button>
+      <a href="{{ url_for('dashboard') }}" class="btn-secondary">Cancel</a>
+    </div>
+  </form>
+</div>
+{% endblock %}
