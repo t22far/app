@@ -369,6 +369,34 @@ def api_refresh() -> str:
     return redirect(url_for("dashboard"))
 
 
+@app.route("/api/reseed")
+def api_reseed() -> str:
+    """Clear all employee/timeoff data and reseed from qb_client."""
+    try:
+        from sqlalchemy import text
+        with db.engine.connect() as conn:
+            conn.execute(text("DELETE FROM timeoff_cache"))
+            conn.execute(text("DELETE FROM employee_cache"))
+            conn.commit()
+        _sync_from_qbo()
+        # Apply entitlement hours from qb_client real data
+        now = datetime.datetime.utcnow()
+        for e in qb_client.get_employees():
+            emp = db.session.get(EmployeeCache, e["id"])
+            if emp:
+                src = next((r for r in qb_client._REAL_EMPLOYEES if r["id"] == e["id"]), None)
+                if src:
+                    emp.entitlement_hours = src["entitlementHours"]
+                emp.is_director = False
+                emp.last_synced = now
+        db.session.commit()
+        flash("Database reseeded with real employee data.", "success")
+    except Exception as exc:
+        db.session.rollback()
+        flash(f"Reseed failed: {exc}", "error")
+    return redirect(url_for("dashboard"))
+
+
 @app.template_filter("fmt_hours")
 def fmt_hours(value: float) -> str:
     return f"{value:.1f} hrs"

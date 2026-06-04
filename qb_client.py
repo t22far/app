@@ -412,58 +412,55 @@ def is_director(first: str, last: str) -> bool:
 
 import datetime as _dt
 
-_MOCK_EMPLOYEES: list[dict[str, Any]] = [
-    {"id": "emp-001", "firstName": "Alice",  "lastName": "Henderson", "email": "alice.henderson@company.com",  "status": "ACTIVE",   "jobTitle": "Senior Engineer",  "department": "Engineering"},
-    {"id": "emp-002", "firstName": "Ben",    "lastName": "Okafor",    "email": "ben.okafor@company.com",       "status": "ACTIVE",   "jobTitle": "Product Manager",  "department": "Product"},
-    {"id": "emp-003", "firstName": "Clara",  "lastName": "Marchetti", "email": "clara.marchetti@company.com", "status": "ACTIVE",   "jobTitle": "UX Designer",      "department": "Design"},
-    {"id": "emp-004", "firstName": "David",  "lastName": "Nkrumah",   "email": "david.nkrumah@company.com",   "status": "ACTIVE",   "jobTitle": "Data Analyst",     "department": "Analytics"},
-    {"id": "emp-005", "firstName": "Elena",  "lastName": "Vasquez",   "email": "elena.vasquez@company.com",   "status": "ACTIVE",   "jobTitle": "DevOps Engineer",  "department": "Engineering"},
-    {"id": "emp-006", "firstName": "Frank",  "lastName": "Osei",      "email": "frank.osei@company.com",      "status": "ACTIVE",   "jobTitle": "Marketing Lead",   "department": "Marketing"},
-    {"id": "emp-007", "firstName": "Grace",  "lastName": "Thornton",  "email": "grace.thornton@company.com",  "status": "INACTIVE", "jobTitle": "HR Coordinator",   "department": "HR"},
-    {"id": "emp-008", "firstName": "Hassan", "lastName": "Al-Rashid", "email": "hassan.alrashid@company.com", "status": "ACTIVE",   "jobTitle": "Finance Manager",  "department": "Finance"},
+_REAL_EMPLOYEES: list[dict[str, Any]] = [
+    {"id": "qb-alfie-richards",    "firstName": "Alfie",    "lastName": "Richards",  "entitlementHours": 42.0},
+    {"id": "qb-caroline-jempson",  "firstName": "Caroline", "lastName": "Jempson",   "entitlementHours": 78.4},
+    {"id": "qb-helen-powell",      "firstName": "Helen",    "lastName": "Powell",    "entitlementHours": 78.4},
+    {"id": "qb-kady-richards",     "firstName": "Kady",     "lastName": "Richards",  "entitlementHours": 78.4},
+    {"id": "qb-karen-wadsworth",   "firstName": "Karen",    "lastName": "Wadsworth", "entitlementHours": 100.8},
+    {"id": "qb-laynie-tunstall",   "firstName": "Laynie",   "lastName": "Tunstall",  "entitlementHours": 36.4},
+    {"id": "qb-linda-pascoe",      "firstName": "Linda",    "lastName": "Pascoe",    "entitlementHours": 81.2},
+    {"id": "qb-tina-davidson",     "firstName": "Tina",     "lastName": "Davidson",  "entitlementHours": 117.6},
+    {"id": "qb-victoria-southern", "firstName": "Victoria", "lastName": "Southern",  "entitlementHours": 89.6},
 ]
 
-_today = _dt.date.today()
-_MOCK_PAYSLIPS: dict[str, list[dict[str, Any]]] = {
-    emp["id"]: [
-        {
-            "payslipId":   f"{emp['id']}-ps-{i}",
-            "employeeId":  emp["id"],
-            "periodStart": (_today - _dt.timedelta(days=30 * (i + 1))).isoformat(),
-            "periodEnd":   (_today - _dt.timedelta(days=30 * i + 1)).isoformat(),
-            "grossPay":    round(4500.0 + abs(hash(emp["id"]) % 2000), 2),
-            "netPay":      round(3200.0 + abs(hash(emp["id"]) % 1500), 2),
-        }
-        for i in range(3)
-    ]
-    for emp in _MOCK_EMPLOYEES
+_REAL_LEAVE_USED: dict[str, float] = {
+    "qb-alfie-richards":    7.5,
+    "qb-caroline-jempson":  12.5,
+    "qb-helen-powell":      42.0,
+    "qb-kady-richards":     40.5,
+    "qb-karen-wadsworth":   69.5,
+    "qb-laynie-tunstall":   7.5,
+    "qb-linda-pascoe":      36.0,
+    "qb-tina-davidson":     86.5,
+    "qb-victoria-southern": 34.0,
 }
 
 
 def get_employees() -> list[dict[str, Any]]:
-    return list(_MOCK_EMPLOYEES)
+    return [
+        {**e, "email": "", "status": "ACTIVE", "jobTitle": "", "department": ""}
+        for e in _REAL_EMPLOYEES
+    ]
 
 
 def get_timeoff_details() -> list[dict[str, Any]]:
-    _MOCK_TIMEOFF: dict[str, list[dict[str, Any]]] = {
-        "emp-001": [{"policyId": "pol-vacation", "policyName": "Annual Leave", "category": "VACATION", "accruedHours": 160.0, "usedHours": 64.0,  "scheduledHours": 16.0}, {"policyId": "pol-sick", "policyName": "Sick Leave", "category": "SICK", "accruedHours": 80.0, "usedHours": 8.0,  "scheduledHours": 0.0}],
-        "emp-002": [{"policyId": "pol-vacation", "policyName": "Annual Leave", "category": "VACATION", "accruedHours": 160.0, "usedHours": 120.0, "scheduledHours": 24.0}, {"policyId": "pol-sick", "policyName": "Sick Leave", "category": "SICK", "accruedHours": 80.0, "usedHours": 24.0, "scheduledHours": 8.0}],
-        "emp-003": [{"policyId": "pol-vacation", "policyName": "Annual Leave", "category": "VACATION", "accruedHours": 160.0, "usedHours": 32.0,  "scheduledHours": 40.0}, {"policyId": "pol-sick", "policyName": "Sick Leave", "category": "SICK", "accruedHours": 80.0, "usedHours": 0.0,  "scheduledHours": 0.0}],
-        "emp-004": [{"policyId": "pol-vacation", "policyName": "Annual Leave", "category": "VACATION", "accruedHours": 160.0, "usedHours": 144.0, "scheduledHours": 16.0}, {"policyId": "pol-sick", "policyName": "Sick Leave", "category": "SICK", "accruedHours": 80.0, "usedHours": 40.0, "scheduledHours": 0.0}],
-        "emp-005": [{"policyId": "pol-vacation", "policyName": "Annual Leave", "category": "VACATION", "accruedHours": 160.0, "usedHours": 8.0,   "scheduledHours": 8.0},  {"policyId": "pol-sick", "policyName": "Sick Leave", "category": "SICK", "accruedHours": 80.0, "usedHours": 0.0,  "scheduledHours": 0.0}],
-        "emp-006": [{"policyId": "pol-vacation", "policyName": "Annual Leave", "category": "VACATION", "accruedHours": 160.0, "usedHours": 72.0,  "scheduledHours": 32.0}, {"policyId": "pol-sick", "policyName": "Sick Leave", "category": "SICK", "accruedHours": 80.0, "usedHours": 16.0, "scheduledHours": 0.0}],
-        "emp-007": [{"policyId": "pol-vacation", "policyName": "Annual Leave", "category": "VACATION", "accruedHours": 160.0, "usedHours": 160.0, "scheduledHours": 0.0},  {"policyId": "pol-sick", "policyName": "Sick Leave", "category": "SICK", "accruedHours": 80.0, "usedHours": 56.0, "scheduledHours": 0.0}],
-        "emp-008": [{"policyId": "pol-vacation", "policyName": "Annual Leave", "category": "VACATION", "accruedHours": 160.0, "usedHours": 48.0,  "scheduledHours": 0.0},  {"policyId": "pol-sick", "policyName": "Sick Leave", "category": "SICK", "accruedHours": 80.0, "usedHours": 8.0,  "scheduledHours": 0.0}],
-    }
     rows: list[dict[str, Any]] = []
-    for emp_id, balances in _MOCK_TIMEOFF.items():
-        for balance in balances:
-            rows.append({"employeeId": emp_id, **balance})
+    for e in _REAL_EMPLOYEES:
+        rows.append({
+            "employeeId":     e["id"],
+            "policyId":       "pol-annual-leave",
+            "policyName":     "Annual Leave",
+            "category":       "VACATION",
+            "accruedHours":   e["entitlementHours"],
+            "usedHours":      _REAL_LEAVE_USED.get(e["id"], 0.0),
+            "scheduledHours": 0.0,
+        })
     return rows
 
 
 def get_employee_payslips(employee_id: str) -> list[dict[str, Any]]:
-    return list(_MOCK_PAYSLIPS.get(employee_id, []))
+    return []
 
 
 def get_employee_timeoff(employee_id: str) -> list[dict[str, Any]]:
