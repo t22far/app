@@ -113,8 +113,26 @@ def create_tables_and_seed() -> None:
                     f"ALTER TABLE employee_cache ADD COLUMN {col_def[0]} {col_def[1]}"
                 ))
         conn.commit()
-    if EmployeeCache.query.count() == 0:
+
+    # If the DB has old mock employees (emp-001…), clear and reseed with real data
+    has_mock = db.session.query(
+        EmployeeCache.query.filter(EmployeeCache.id.like("emp-%")).exists()
+    ).scalar()
+    if has_mock or EmployeeCache.query.count() == 0:
+        from sqlalchemy import text
+        with db.engine.connect() as conn:
+            conn.execute(text("DELETE FROM timeoff_cache"))
+            conn.execute(text("DELETE FROM employee_cache"))
+            conn.commit()
         _sync_from_qbo()
+        now = datetime.datetime.utcnow()
+        for src in qb_client._REAL_EMPLOYEES:
+            emp = db.session.get(EmployeeCache, src["id"])
+            if emp:
+                emp.entitlement_hours = src["entitlementHours"]
+                emp.is_director = False
+                emp.last_synced = now
+        db.session.commit()
 
 
 with app.app_context():
