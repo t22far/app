@@ -1,0 +1,23 @@
+{# expects: bal (Balance), heading (str, optional) #}
+<div class="card balance-card">
+  <div class="balance-head">
+    <div>
+      <div class="muted small">{{ heading or 'Holiday remaining' }} · {{ year_label }}</div>
+      <div class="balance-big balance-{{ bal.status }}">{{ bal.available|hours }}</div>
+      {% if bal.pending_hours > 0 %}<div class="small muted">{{ bal.available_after_pending|hours }} if pending requests are approved</div>{% endif %}
+      {% if not bal.has_allowance %}<div class="small warn-text">No allowance set for this leave year yet.</div>{% endif %}
+    </div>
+    <div class="ring" style="--pct:{{ bal.percent_used }}"><span>{{ bal.percent_used }}%<br><small>used</small></span></div>
+  </div>
+  <div class="balance-grid">
+    <div><span class="muted small">Allowance</span><strong>{{ bal.allowance_hours|hours }}</strong></div>
+    {% if bal.carry_over_hours %}<div><span class="muted small">Carried over</span><strong>{{ bal.carry_over_hours|hours }}</strong></div>{% endif %}
+    {% if bal.adjustment_hours %}<div><span class="muted small">Adjustments</span><strong>{{ bal.adjustment_hours|signed_hours }}</strong></div>{% endif %}
+    <div><span class="muted small">Taken</span><strong>{{ bal.taken_hours|hours }}</strong></div>
+    <div><span class="muted small">Booked ahead</span><strong>{{ bal.booked_hours|hours }}</strong></div>
+    <div><span class="muted small">Awaiting approval</span><strong>{{ bal.pending_hours|hours }}</strong></div>
+    {% if bal.sick_hours %}<div><span class="muted small">Sick (not deducted)</span><strong>{{ bal.sick_hours|hours }}</strong></div>{% endif %}
+  </div>
+  <div class="bar"><span class="bar-taken" style="width:{{ (bal.taken_hours / bal.allocated * 100) if bal.allocated > 0 else 0 }}%"></span><span class="bar-booked" style="width:{{ (bal.booked_hours / bal.allocated * 100) if bal.allocated > 0 else 0 }}%"></span><span class="bar-pending" style="width:{{ (bal.pending_hours / bal.allocated * 100) if bal.allocated > 0 else 0 }}%"></span></div>
+  <div class="legend small"><span><i class="sw sw-taken"></i>Taken</span><span><i class="sw sw-booked"></i>Booked</span><span><i class="sw sw-pending"></i>Pending</span><span><i class="sw sw-free"></i>Remaining</span></div>
+</div>

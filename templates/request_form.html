@@ -1,0 +1,51 @@
+{% extends "base.html" %}
+{% block title %}Request time off{% endblock %}
+{% block content %}
+<div class="page-head"><div><h1>Request time off</h1><p class="muted">Your manager will be notified and you'll see the decision on your My leave page.</p></div></div>
+<div class="card form-card narrow">
+  <form method="post" class="form" id="reqform">
+    <div class="row-2">
+      <label>First day<input type="date" name="start_date" id="start_date" required></label>
+      <label>Last day<input type="date" name="end_date" id="end_date"></label>
+    </div>
+    <label>Type
+      <select name="leave_type">{% for v, l in types %}<option value="{{ v }}">{{ l }}</option>{% endfor %}</select>
+    </label>
+    <label>Hours <span class="muted small" id="hours_hint"></span>
+      <input type="number" name="hours" id="hours" step="0.5" min="0.5" required>
+    </label>
+    <label>Note for your manager (optional)<textarea name="note" rows="2" maxlength="500"></textarea></label>
+    <div class="form-actions">
+      <a href="{{ url_for('my_leave') }}" class="btn btn-outline">Back</a>
+      <button class="btn btn-primary" type="submit">Send request</button>
+    </div>
+  </form>
+</div>
+{% endblock %}
+{% block scripts %}
+<script>
+(function(){
+  var hpd = {{ hours_per_day }};
+  var s = document.getElementById('start_date'), e = document.getElementById('end_date'),
+      h = document.getElementById('hours'), hint = document.getElementById('hours_hint');
+  var touched = false;
+  h.addEventListener('input', function(){ touched = true; });
+  function workingDays(a, b){
+    var n = 0, d = new Date(a);
+    while (d <= b){ var wd = d.getDay(); if (wd !== 0 && wd !== 6) n++; d.setDate(d.getDate()+1); }
+    return n;
+  }
+  function recalc(){
+    if (!s.value) return;
+    if (!e.value || e.value < s.value) e.value = s.value;
+    var a = new Date(s.value), b = new Date(e.value);
+    var days = workingDays(a, b);
+    var suggested = days * hpd;
+    hint.textContent = '(' + days + ' working day' + (days === 1 ? '' : 's') + ' × ' + hpd + 'h = ' + suggested + 'h — change if different)';
+    if (!touched) h.value = suggested;
+  }
+  s.addEventListener('change', recalc); e.addEventListener('change', recalc);
+  var t = new Date(); s.min = t.toISOString().slice(0,10);
+})();
+</script>
+{% endblock %}

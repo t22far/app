@@ -1,0 +1,36 @@
+{% extends "base.html" %}
+{% block title %}Approvals{% endblock %}
+{% block content %}
+<div class="page-head"><div><h1>Awaiting approval</h1><p class="muted">Each card shows the person's balance and anyone else already off on those dates.</p></div></div>
+{% for row in rows %}
+{% set r = row.req %}{% set b = row.bal %}
+<div class="card approval">
+  <div class="approval-main">
+    <div class="person"><span class="avatar c{{ r.employee|colour }}">{{ r.employee.initials }}</span><div><strong>{{ r.employee.full_name }}</strong><div class="small muted">requested {{ r.created_at|datetime }}</div></div></div>
+    <div class="approval-dates"><strong>{{ r|daterange }}</strong><div><span class="tag tag-{{ r.leave_type }}">{{ r.type_label }}</span> {{ r.hours|hours }}{% if r.days > 1 %} <span class="muted small">over {{ r.days }} days</span>{% endif %}</div></div>
+    {% if r.note %}<div class="approval-note">“{{ r.note }}”</div>{% endif %}
+  </div>
+  <div class="approval-side">
+    <div class="mini-balance">
+      <div><span class="muted small">Remaining now</span><strong class="balance-{{ b.status }}">{{ b.available|hours }}</strong></div>
+      <div><span class="muted small">After this</span><strong>{{ (b.available - (r.hours if r.counts_against_allowance else 0))|hours }}</strong></div>
+      {% if b.pending_hours - (r.hours if r.counts_against_allowance else 0) > 0 %}<div><span class="muted small">Other pending</span><strong>{{ (b.pending_hours - r.hours)|hours }}</strong></div>{% endif %}
+    </div>
+    {% if row.clashes %}
+    <div class="clashes"><span class="small muted">Also off then:</span>
+      {% for c in row.clashes %}<span class="chip c{{ c.employee|colour }} {{ 'chip-pending' if c.status == 'pending' }}" title="{{ c|daterange }}">{{ c.employee.first_name }}</span>{% endfor %}
+    </div>
+    {% else %}<div class="small good-text">Nobody else off on these dates.</div>{% endif %}
+    <form method="post" class="decide" id="decide-{{ r.id }}">
+      <input type="text" name="decision_note" placeholder="Optional reply to {{ r.employee.first_name }}" maxlength="500">
+      <div class="form-actions">
+        <button class="btn btn-danger-outline" formaction="{{ url_for('reject_request', req_id=r.id) }}">Reject</button>
+        <button class="btn btn-good" formaction="{{ url_for('approve_request', req_id=r.id) }}">Approve</button>
+      </div>
+    </form>
+  </div>
+</div>
+{% else %}
+<div class="card center"><p class="muted">All caught up. Nothing waiting for a decision.</p><a href="{{ url_for('admin_dashboard') }}" class="btn btn-outline">Back to team</a></div>
+{% endfor %}
+{% endblock %}

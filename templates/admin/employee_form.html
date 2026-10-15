@@ -1,0 +1,27 @@
+{% extends "base.html" %}
+{% block title %}Add staff{% endblock %}
+{% block content %}
+<div class="page-head"><div><h1>Add staff member</h1><p class="muted">They sign in with the password you set here and will be asked to change it.</p></div></div>
+<div class="card form-card narrow">
+  <form method="post" class="form">
+    <div class="row-2">
+      <label>First name<input type="text" name="first_name" required autofocus></label>
+      <label>Last name<input type="text" name="last_name"></label>
+    </div>
+    <label>Email (used to sign in)<input type="email" name="email" required></label>
+    <label>Temporary password<input type="text" name="password" minlength="6" required placeholder="At least 6 characters"></label>
+    <div class="row-2">
+      <label>Job title<input type="text" name="job_title"></label>
+      <label>Start date<input type="date" name="start_date"></label>
+    </div>
+    <div class="row-2">
+      <label>Usual hours per working day<input type="number" step="0.5" name="hours_per_day" value="{{ settings.default_hours_per_day }}"></label>
+      <label>Holiday allowance this leave year (hours)<input type="number" step="0.5" name="allowance_hours" placeholder="e.g. 80"></label>
+    </div>
+    <label>Role
+      <select name="role"><option value="staff">Staff – can see their own leave and request time off</option><option value="admin">Admin – can approve and manage everyone</option></select>
+    </label>
+    <div class="form-actions"><a href="{{ url_for('admin_employees') }}" class="btn btn-outline">Cancel</a><button class="btn btn-primary" type="submit">Add</button></div>
+  </form>
+</div>
+{% endblock %}

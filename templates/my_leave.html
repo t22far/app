@@ -1,0 +1,27 @@
+{% extends "base.html" %}
+{% block title %}My leave{% endblock %}
+{% block content %}
+<div class="page-head">
+  <div><h1>Hi {{ current_user.first_name }}</h1><p class="muted">{{ year_start|date('%d %b %Y') }} – {{ year_end|date('%d %b %Y') }}</p></div>
+  <div class="head-actions">
+    {% include "_year_picker.html" %}
+    <a href="{{ url_for('new_request') }}" class="btn btn-primary">Request time off</a>
+  </div>
+</div>
+
+{% include "_balance_card.html" %}
+
+{% if bal.booked %}
+<h2>Coming up</h2>
+<div class="card">
+  <ul class="upcoming">
+    {% for r in bal.booked %}<li><strong>{{ r|daterange }}</strong><span class="muted">{{ r.hours|hours }}</span></li>{% endfor %}
+  </ul>
+</div>
+{% endif %}
+
+<h2>All requests this leave year</h2>
+<div class="card table-wrap">
+  {% with show_employee=false, admin=false %}{% include "_request_rows.html" %}{% endwith %}
+</div>
+{% endblock %}

@@ -1,0 +1,28 @@
+{% extends "base.html" %}
+{% block title %}Calendar{% endblock %}
+{% block content %}
+<div class="page-head">
+  <div><h1>{{ month_label }}</h1><p class="muted">Who's off and when. Solid = approved, dashed = awaiting approval.</p></div>
+  <div class="head-actions">
+    <a class="btn btn-outline" href="{{ url_for('calendar_view', y=prev_month.year, m=prev_month.month) }}">‹ {{ prev_month|date('%b') }}</a>
+    <a class="btn btn-outline" href="{{ url_for('calendar_view') }}">Today</a>
+    <a class="btn btn-outline" href="{{ url_for('calendar_view', y=next_month.year, m=next_month.month) }}">{{ next_month|date('%b') }} ›</a>
+  </div>
+</div>
+<div class="card cal-card">
+  <div class="cal">
+    {% for d in ['Mon','Tue','Wed','Thu','Fri','Sat','Sun'] %}<div class="cal-dow">{{ d }}</div>{% endfor %}
+    {% for week in weeks %}{% for day in week %}
+    <div class="cal-day {{ 'other' if day.month != month }} {{ 'today' if day == today }} {{ 'weekend' if day.weekday() >= 5 }}">
+      <div class="cal-num">{{ day.day }}</div>
+      {% for r in by_day[day] %}
+      <a href="{{ url_for('admin_employee', emp_id=r.employee_id) if current_user.is_admin else '#' }}" class="chip c{{ r.employee|colour }} {{ 'chip-pending' if r.status == 'pending' }} {{ 'chip-sick' if r.leave_type == 'sick' }}" title="{{ r.employee.full_name }} · {{ r|daterange }} · {{ r.hours|hours }} {{ r.type_label }} ({{ r.status }})">{{ r.employee.first_name }}{% if r.leave_type != 'holiday' %} · {{ r.type_label|lower }}{% endif %}</a>
+      {% endfor %}
+    </div>
+    {% endfor %}{% endfor %}
+  </div>
+</div>
+<div class="cal-legend">
+  {% for e in employees %}<span class="chip c{{ e|colour }}">{{ e.first_name }}</span>{% endfor %}
+</div>
+{% endblock %}

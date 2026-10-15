@@ -1,0 +1,41 @@
+{% extends "base.html" %}
+{% block title %}Team{% endblock %}
+{% block content %}
+<div class="page-head">
+  <div><h1>Team overview</h1><p class="muted">{{ year_start|date('%d %b %Y') }} – {{ year_end|date('%d %b %Y') }}</p></div>
+  <div class="head-actions">
+    {% include "_year_picker.html" %}
+    {% if pending_count %}<a href="{{ url_for('admin_approvals') }}" class="btn btn-primary">{{ pending_count }} awaiting approval</a>{% endif %}
+  </div>
+</div>
+
+<div class="card table-wrap">
+  <table class="table team-table">
+    <thead><tr><th>Staff</th><th class="num">Allowance</th><th class="num">Taken</th><th class="num">Booked</th><th class="num">Pending</th><th class="num">Remaining</th><th class="bar-col">Used</th></tr></thead>
+    <tbody>
+    {% for b in balances %}
+    <tr>
+      <td><a href="{{ url_for('admin_employee', emp_id=b.employee.id, year=year_start.isoformat()) }}" class="person"><span class="avatar c{{ b.employee|colour }}">{{ b.employee.initials }}</span><span><strong>{{ b.employee.full_name }}</strong>{% if b.employee.job_title %}<br><span class="small muted">{{ b.employee.job_title }}</span>{% endif %}</span></a></td>
+      <td class="num">{{ b.allocated|hours }}{% if not b.has_allowance %} <span class="warn-text small" title="No allowance set">!</span>{% endif %}</td>
+      <td class="num">{{ b.taken_hours|hours }}</td>
+      <td class="num">{{ b.booked_hours|hours }}</td>
+      <td class="num">{% if b.pending_hours %}<span class="status status-pending">{{ b.pending_hours|hours }}</span>{% else %}–{% endif %}</td>
+      <td class="num"><span class="balance-pill balance-{{ b.status }}">{{ b.available|hours }}</span></td>
+      <td class="bar-col"><div class="bar"><span class="bar-taken" style="width:{{ (b.taken_hours / b.allocated * 100) if b.allocated > 0 else 0 }}%"></span><span class="bar-booked" style="width:{{ (b.booked_hours / b.allocated * 100) if b.allocated > 0 else 0 }}%"></span></div></td>
+    </tr>
+    {% else %}
+    <tr><td colspan="7" class="empty">No staff yet. <a href="{{ url_for('admin_new_employee') }}">Add your first member of staff</a>.</td></tr>
+    {% endfor %}
+    </tbody>
+  </table>
+</div>
+
+{% if upcoming %}
+<h2>Upcoming approved leave</h2>
+<div class="card">
+  <ul class="upcoming">
+    {% for r in upcoming %}<li><span class="chip c{{ r.employee|colour }}">{{ r.employee.first_name }}</span><strong>{{ r|daterange }}</strong><span class="muted">{{ r.hours|hours }} {{ r.type_label|lower }}</span></li>{% endfor %}
+  </ul>
+</div>
+{% endif %}
+{% endblock %}

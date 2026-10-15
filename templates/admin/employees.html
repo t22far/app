@@ -1,0 +1,25 @@
+{% extends "base.html" %}
+{% block title %}Staff{% endblock %}
+{% block content %}
+<div class="page-head"><div><h1>Staff</h1><p class="muted">Everyone who can sign in. Deactivated staff keep their history but can't log in.</p></div>
+  <div class="head-actions"><a href="{{ url_for('admin_new_employee') }}" class="btn btn-primary">Add staff member</a></div></div>
+<div class="card table-wrap">
+  <table class="table">
+    <thead><tr><th>Name</th><th>Email</th><th>Role</th><th class="num">Hours/day</th><th>Started</th><th></th></tr></thead>
+    <tbody>
+    {% for e in employees %}
+    <tr class="{{ 'row-inactive' if not e.is_active_employee }}">
+      <td><a href="{{ url_for('admin_employee', emp_id=e.id) }}" class="person"><span class="avatar c{{ e|colour }}">{{ e.initials }}</span><span><strong>{{ e.full_name }}</strong>{% if e.job_title %}<br><span class="small muted">{{ e.job_title }}</span>{% endif %}</span></a></td>
+      <td>{{ e.email }}</td>
+      <td><span class="tag tag-{{ e.role }}">{{ e.role|capitalize }}</span>{% if not e.is_active_employee %} <span class="status status-cancelled">Inactive</span>{% endif %}</td>
+      <td class="num">{{ e.hours_per_day|hours }}</td>
+      <td>{{ e.start_date|date('%d %b %Y') if e.start_date else '–' }}</td>
+      <td class="actions"><a href="{{ url_for('admin_employee', emp_id=e.id) }}" class="btn btn-sm btn-outline">Open</a></td>
+    </tr>
+    {% else %}
+    <tr><td colspan="6" class="empty">No staff yet.</td></tr>
+    {% endfor %}
+    </tbody>
+  </table>
+</div>
+{% endblock %}

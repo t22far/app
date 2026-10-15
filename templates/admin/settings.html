@@ -1,0 +1,17 @@
+{% extends "base.html" %}
+{% block title %}Settings{% endblock %}
+{% block content %}
+<div class="page-head"><div><h1>Settings</h1></div></div>
+<div class="card form-card narrow">
+  <form method="post" class="form">
+    <label>Business name<input type="text" name="company_name" value="{{ settings.company_name }}" required></label>
+    <div class="row-2">
+      <label>Leave year starts on day<input type="number" name="leave_year_start_day" min="1" max="31" value="{{ settings.leave_year_start_day }}"></label>
+      <label>Month<select name="leave_year_start_month">{% for n, name in months %}<option value="{{ n }}" {{ 'selected' if n == settings.leave_year_start_month }}>{{ name }}</option>{% endfor %}</select></label>
+    </div>
+    <p class="small muted">Balances reset on this date every year. Each person's allowance is set per leave year on their staff page.</p>
+    <label>Default hours per working day (for new staff)<input type="number" step="0.5" name="default_hours_per_day" value="{{ settings.default_hours_per_day }}"></label>
+    <button class="btn btn-primary" type="submit">Save settings</button>
+  </form>
+</div>
+{% endblock %}

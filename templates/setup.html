@@ -1,0 +1,18 @@
+{% extends "base.html" %}
+{% block title %}Set up{% endblock %}
+{% block content %}
+<div class="auth-card card">
+  <h1>Welcome</h1>
+  <p class="muted">Create the first admin account. You'll add staff after this.</p>
+  <form method="post" class="form">
+    <label>Business name<input type="text" name="company_name" placeholder="e.g. The Shop" required></label>
+    <div class="row-2">
+      <label>First name<input type="text" name="first_name" required></label>
+      <label>Last name<input type="text" name="last_name"></label>
+    </div>
+    <label>Email<input type="email" name="email" required></label>
+    <label>Password<input type="password" name="password" minlength="6" required></label>
+    <button class="btn btn-primary btn-block" type="submit">Create admin account</button>
+  </form>
+</div>
+{% endblock %}

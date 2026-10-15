@@ -1,0 +1,112 @@
+{% extends "base.html" %}
+{% block title %}{{ emp.full_name }}{% endblock %}
+{% block content %}
+<div class="page-head">
+  <div><a href="{{ url_for('admin_employees') }}" class="back">‹ Staff</a><h1>{{ emp.full_name }} {% if not emp.is_active_employee %}<span class="status status-cancelled">Inactive</span>{% endif %}</h1><p class="muted">{{ emp.job_title or '' }}{% if emp.job_title %} · {% endif %}{{ emp.email }}</p></div>
+  <div class="head-actions">{% include "_year_picker.html" %}</div>
+</div>
+
+{% with heading=emp.first_name ~ "'s holiday remaining" %}{% include "_balance_card.html" %}{% endwith %}
+
+<div class="grid-2">
+  <div class="card form-card">
+    <h2>Allowance for {{ year_label }}</h2>
+    <form method="post" action="{{ url_for('admin_set_allowance', emp_id=emp.id) }}" class="form">
+      <input type="hidden" name="year_start" value="{{ year_start.isoformat() }}">
+      <div class="row-2">
+        <label>Holiday hours<input type="number" step="0.5" name="hours" value="{{ allowance.hours if allowance else '' }}" placeholder="e.g. 80" required></label>
+        <label>Carried over from last year<input type="number" step="0.5" name="carry_over_hours" value="{{ allowance.carry_over_hours if allowance else 0 }}"></label>
+      </div>
+      <label>Notes<input type="text" name="notes" value="{{ allowance.notes or '' if allowance else '' }}" placeholder="e.g. pro-rata from June"></label>
+      <button class="btn btn-primary" type="submit">Save allowance</button>
+    </form>
+    <hr>
+    <h3>Adjust by hours</h3>
+    <p class="small muted">Use for one-off corrections. Positive adds, negative removes.</p>
+    <form method="post" action="{{ url_for('admin_add_adjustment', emp_id=emp.id) }}" class="form">
+      <input type="hidden" name="year_start" value="{{ year_start.isoformat() }}">
+      <div class="row-2">
+        <label>Hours<input type="number" step="0.5" name="hours" placeholder="e.g. -4 or 8" required></label>
+        <label>Reason<input type="text" name="reason" required placeholder="e.g. worked bank holiday"></label>
+      </div>
+      <button class="btn btn-outline" type="submit">Add adjustment</button>
+    </form>
+    {% if adjustments %}
+    <ul class="adj-list">
+      {% for a in adjustments %}<li><strong class="{{ 'good-text' if a.hours > 0 else 'danger-text' }}">{{ a.hours|signed_hours }}</strong> {{ a.reason }} <span class="small muted">{{ a.created_at|datetime }}</span>
+        <form method="post" action="{{ url_for('admin_delete_adjustment', adj_id=a.id) }}" class="inline" onsubmit="return confirm('Remove this adjustment?')"><button class="btn btn-sm btn-ghost">🗑</button></form></li>{% endfor %}
+    </ul>
+    {% endif %}
+  </div>
+
+  <div class="card form-card">
+    <h2>Record leave for {{ emp.first_name }}</h2>
+    <p class="small muted">Goes straight in as approved. Use this to enter holidays already taken or agreed.</p>
+    <form method="post" action="{{ url_for('admin_add_leave', emp_id=emp.id) }}" class="form" id="adminleave">
+      <div class="row-2">
+        <label>First day<input type="date" name="start_date" id="a_start" required></label>
+        <label>Last day<input type="date" name="end_date" id="a_end"></label>
+      </div>
+      <div class="row-2">
+        <label>Type<select name="leave_type">{% for v, l in types %}<option value="{{ v }}">{{ l }}</option>{% endfor %}</select></label>
+        <label>Hours <span class="small muted" id="a_hint"></span><input type="number" step="0.5" min="0.5" name="hours" id="a_hours" required></label>
+      </div>
+      <label>Note<input type="text" name="note" maxlength="500"></label>
+      <button class="btn btn-primary" type="submit">Record leave</button>
+    </form>
+  </div>
+</div>
+
+<h2>History · {{ year_label }}</h2>
+<div class="card table-wrap">
+  {% with show_employee=false, admin=true %}{% include "_request_rows.html" %}{% endwith %}
+</div>
+
+<div class="grid-2">
+  <div class="card form-card">
+    <h2>Details</h2>
+    <form method="post" action="{{ url_for('admin_edit_employee', emp_id=emp.id) }}" class="form">
+      <div class="row-2">
+        <label>First name<input type="text" name="first_name" value="{{ emp.first_name }}" required></label>
+        <label>Last name<input type="text" name="last_name" value="{{ emp.last_name }}"></label>
+      </div>
+      <label>Email<input type="email" name="email" value="{{ emp.email }}" required></label>
+      <div class="row-2">
+        <label>Job title<input type="text" name="job_title" value="{{ emp.job_title or '' }}"></label>
+        <label>Start date<input type="date" name="start_date" value="{{ emp.start_date.isoformat() if emp.start_date else '' }}"></label>
+      </div>
+      <div class="row-2">
+        <label>Hours per working day<input type="number" step="0.5" name="hours_per_day" value="{{ emp.hours_per_day }}"></label>
+        <label>Role<select name="role"><option value="staff" {{ 'selected' if emp.role == 'staff' }}>Staff</option><option value="admin" {{ 'selected' if emp.role == 'admin' }}>Admin</option></select></label>
+      </div>
+      <button class="btn btn-primary" type="submit">Save details</button>
+    </form>
+  </div>
+  <div class="card form-card">
+    <h2>Account</h2>
+    <form method="post" action="{{ url_for('admin_reset_password', emp_id=emp.id) }}" class="form">
+      <label>Reset password<input type="text" name="password" minlength="6" required placeholder="New temporary password"></label>
+      <button class="btn btn-outline" type="submit">Reset password</button>
+    </form>
+    {% if emp.id != current_user.id %}
+    <hr>
+    <form method="post" action="{{ url_for('admin_toggle_active', emp_id=emp.id) }}" onsubmit="return confirm('{{ 'Reactivate' if not emp.is_active_employee else 'Deactivate' }} {{ emp.first_name }}?')">
+      <button class="btn {{ 'btn-good' if not emp.is_active_employee else 'btn-danger-outline' }}" type="submit">{{ 'Reactivate account' if not emp.is_active_employee else 'Deactivate account' }}</button>
+      <p class="small muted">{{ 'They will be able to sign in again.' if not emp.is_active_employee else 'Stops them signing in. History is kept.' }}</p>
+    </form>
+    {% endif %}
+  </div>
+</div>
+{% endblock %}
+{% block scripts %}
+<script>
+(function(){
+  var hpd = {{ emp.hours_per_day or settings.default_hours_per_day }};
+  var s=document.getElementById('a_start'),e=document.getElementById('a_end'),h=document.getElementById('a_hours'),hint=document.getElementById('a_hint');
+  var touched=false; h.addEventListener('input',function(){touched=true;});
+  function wd(a,b){var n=0,d=new Date(a);while(d<=b){var w=d.getDay();if(w!==0&&w!==6)n++;d.setDate(d.getDate()+1);}return n;}
+  function recalc(){if(!s.value)return;if(!e.value||e.value<s.value)e.value=s.value;var days=wd(new Date(s.value),new Date(e.value));var sug=days*hpd;hint.textContent='('+days+' working day'+(days===1?'':'s')+' × '+hpd+'h = '+sug+'h)';if(!touched)h.value=sug;}
+  s.addEventListener('change',recalc);e.addEventListener('change',recalc);
+})();
+</script>
+{% endblock %}

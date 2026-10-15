@@ -1,0 +1,37 @@
+{# expects: history (list of LeaveRequest), show_employee (bool), admin (bool) #}
+<table class="table req-table">
+  <thead><tr>
+    {% if show_employee %}<th>Who</th>{% endif %}
+    <th>Dates</th><th>Type</th><th class="num">Hours</th><th>Status</th><th>Note</th>{% if admin %}<th></th>{% else %}<th></th>{% endif %}
+  </tr></thead>
+  <tbody>
+  {% for r in history %}
+  <tr class="status-row-{{ r.status }}">
+    {% if show_employee %}<td data-label="Who"><a href="{{ url_for('admin_employee', emp_id=r.employee_id) }}">{{ r.employee.full_name }}</a></td>{% endif %}
+    <td data-label="Dates" class="dates">{{ r|daterange }}{% if r.days > 1 %} <span class="muted small">({{ r.days }} days)</span>{% endif %}</td>
+    <td data-label="Type"><span class="tag tag-{{ r.leave_type }}">{{ r.type_label }}</span></td>
+    <td data-label="Hours" class="num">{{ r.hours|hours }}</td>
+    <td data-label="Status"><span class="status status-{{ r.status }}">{{ r.status|capitalize }}</span>
+      {% if r.decided_by and r.status != 'pending' %}<div class="small muted">by {{ r.decided_by.first_name }} {{ r.decided_at|datetime }}</div>{% endif %}</td>
+    <td data-label="Note" class="note-cell">{{ r.note or '' }}{% if r.decision_note %}<div class="small muted">Reply: {{ r.decision_note }}</div>{% endif %}</td>
+    <td class="actions" data-label="">
+      {% if admin %}
+        {% if r.status == 'pending' %}
+          <form method="post" action="{{ url_for('approve_request', req_id=r.id) }}" class="inline"><input type="hidden" name="next" value="{{ request.full_path }}"><button class="btn btn-sm btn-good">Approve</button></form>
+          <form method="post" action="{{ url_for('reject_request', req_id=r.id) }}" class="inline"><input type="hidden" name="next" value="{{ request.full_path }}"><button class="btn btn-sm btn-danger-outline">Reject</button></form>
+        {% elif r.status == 'approved' %}
+          <form method="post" action="{{ url_for('admin_cancel_request', req_id=r.id) }}" class="inline" onsubmit="return confirm('Cancel this leave? The hours go back to their balance.')"><input type="hidden" name="next" value="{{ request.full_path }}"><button class="btn btn-sm btn-outline">Cancel</button></form>
+        {% endif %}
+        <form method="post" action="{{ url_for('delete_request', req_id=r.id) }}" class="inline" onsubmit="return confirm('Delete this entry completely?')"><input type="hidden" name="next" value="{{ request.full_path }}"><button class="btn btn-sm btn-ghost" title="Delete">🗑</button></form>
+      {% else %}
+        {% if r.status == 'pending' %}
+          <form method="post" action="{{ url_for('cancel_my_request', req_id=r.id) }}" class="inline" onsubmit="return confirm('Withdraw this request?')"><button class="btn btn-sm btn-outline">Withdraw</button></form>
+        {% endif %}
+      {% endif %}
+    </td>
+  </tr>
+  {% else %}
+  <tr><td colspan="7" class="empty">Nothing recorded for this leave year yet.</td></tr>
+  {% endfor %}
+  </tbody>
+</table>

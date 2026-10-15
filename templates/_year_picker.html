@@ -1,0 +1,8 @@
+<form method="get" class="year-picker">
+  <label for="year">Leave year</label>
+  <select name="year" id="year" onchange="this.form.submit()">
+    {% for ys, label in year_options %}
+    <option value="{{ ys.isoformat() }}" {{ 'selected' if ys == year_start }}>{{ label }} ({{ ys|date('%d %b %Y') }} – {{ year_end|date('%d %b %Y') if ys == year_start else '' }})</option>
+    {% endfor %}
+  </select>
+</form>
